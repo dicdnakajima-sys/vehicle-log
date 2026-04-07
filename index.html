@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>車両走行記録</title>
+<style>
+:root{--bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3248;--accent:#4ade80;--accent2:#60a5fa;--danger:#f87171;--text:#e2e8f0;--muted:#64748b;--r:12px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Hiragino Sans',sans-serif;font-size:15px;min-height:100vh;padding-bottom:60px;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;}
+.dot{width:9px;height:9px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.badge{font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:20px;}
+main{max-width:660px;margin:0 auto;padding:24px 16px 0;}
+.tabs{display:flex;gap:3px;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:24px;}
+.tab{flex:1;padding:9px 4px;background:none;border:none;color:var(--muted);border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;transition:.2s;font-family:inherit;}
+.tab.active{background:var(--surface2);color:var(--text);}
+.panel{display:none;}.panel.active{display:block;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:14px;}
+.card-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;display:flex;align-items:center;gap:6px;}
+.card-title::before{content:'';display:inline-block;width:3px;height:13px;background:var(--accent2);border-radius:2px;}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.row.full{grid-template-columns:1fr;}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:500;}
+input,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:15px;padding:11px 13px;outline:none;transition:.2s;-webkit-appearance:none;font-family:inherit;}
+select{font-size:13px;}
+input:focus,select:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(96,165,250,.12);}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+.unit{position:relative;}
+.unit input{padding-right:44px;}
+.unit-lbl{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none;}
+.diff-box{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+.diff-lbl{font-size:13px;color:var(--muted);}
+.diff-val{font-size:22px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;}
+.diff-val.warn{color:var(--danger);}
+.btn{width:100%;padding:13px;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;margin-top:4px;font-family:inherit;}
+.btn-p{background:var(--accent);color:#0f1117;}
+.btn-p:hover{filter:brightness(1.1);}
+.btn-p:disabled{opacity:.5;cursor:not-allowed;}
+.btn-s{background:var(--surface2);color:var(--text);border:1px solid var(--border);margin-top:8px;}
+.btn-s:hover{border-color:var(--accent2);}
+.cam-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;background:var(--surface2);border:1px dashed var(--accent2);border-radius:9px;color:var(--accent2);font-size:12px;font-weight:500;cursor:pointer;transition:.2s;margin-top:6px;font-family:inherit;}
+.cam-btn:hover{background:rgba(96,165,250,.08);}
+.cam-btn.loading{opacity:.5;pointer-events:none;}
+.cam-preview{width:100%;border-radius:9px;margin-top:8px;display:none;border:1px solid var(--border);max-height:160px;object-fit:cover;}
+.ocr-box{display:none;margin-top:8px;border-radius:9px;padding:10px 13px;font-size:12px;align-items:center;gap:6px;}
+.ocr-ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);color:var(--accent);}
+.ocr-err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--danger);}
+.digit-editor{display:none;margin-top:8px;background:var(--surface2);border:1px solid var(--accent);border-radius:9px;padding:12px;}
+.digit-editor-lbl{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.digit-inputs{display:flex;gap:4px;flex-wrap:wrap;}
+.di{width:36px!important;height:44px;text-align:center;font-size:20px!important;font-weight:700!important;padding:4px!important;border-radius:7px!important;background:var(--surface)!important;border:2px solid var(--border)!important;color:var(--accent)!important;}
+.di:focus{border-color:var(--accent2)!important;}
+.digit-confirm{margin-top:8px;width:100%;padding:9px;background:var(--accent);color:#0f1117;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.prev-hint{font-size:11px;color:var(--accent);margin-top:4px;padding:4px 10px;background:rgba(74,222,128,.08);border-radius:6px;display:none;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--accent);color:#0f1117;padding:11px 22px;border-radius:100px;font-weight:700;font-size:13px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;align-items:center;}
+.filter-row select,.filter-row input[type=month]{flex:1;font-size:13px;padding:9px 12px;}
+.btn-exp{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:9px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.btn-exp:hover{border-color:var(--accent2);}
+.empty{text-align:center;color:var(--muted);padding:50px 0;font-size:13px;}
+.log-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:9px;position:relative;overflow:hidden;}
+.log-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent2);}
+.log-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.log-date{font-size:12px;color:var(--muted);}
+.log-veh{font-size:12px;font-weight:700;background:var(--surface2);padding:3px 10px;border-radius:20px;color:var(--accent2);}
+.log-km{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:6px;font-variant-numeric:tabular-nums;}
+.km-block{text-align:center;}
+.km-lbl{font-size:10px;color:var(--muted);margin-bottom:2px;}
+.km-val{font-size:16px;font-weight:500;}
+.km-arr{color:var(--muted);font-size:13px;text-align:center;}
+.km-diff{color:var(--accent);font-size:19px;font-weight:700;}
+.log-note{margin-top:9px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:7px;}
+.del-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:3px;opacity:0;transition:.2s;}
+.log-item:hover .del-btn{opacity:1;}
+.del-btn:hover{color:var(--danger);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;}
+.stat-lbl{font-size:10px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.08em;}
+.stat-val{font-size:24px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;}
+.stat-unit{font-size:11px;color:var(--muted);margin-top:2px;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:26px;width:90%;max-width:380px;}
+.api-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 10px;border-radius:20px;}
+.api-ok{background:rgba(74,222,128,.15);color:var(--accent);border:1px solid rgba(74,222,128,.3);}
+.api-ng{background:rgba(248,113,113,.12);color:var(--danger);border:1px solid rgba(248,113,113,.3);}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="dot"></div>車両走行記録</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span class="api-status api-ng" id="apiStatusBadge">Gemini未設定</span>
+    <span class="badge" id="todayBadge"></span>
+  </div>
+</header>
+<main>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('input')">📝 入力</button>
+    <button class="tab" onclick="switchTab('list')">📋 一覧</button>
+    <button class="tab" onclick="switchTab('summary')">📊 集計</button>
+    <button class="tab" onclick="switchTab('settings')">⚙️ 設定</button>
+  </div>
+
+  <!-- INPUT -->
+  <div class="panel active" id="panel-input">
+    <div class="card">
+      <div class="card-title">基本情報</div>
+      <div class="row">
+        <div><label>日付</label><input type="date" id="inputDate"></div>
+        <div><label>車両</label>
+          <div style="display:flex;gap:8px;">
+            <select id="inputVehicle" style="flex:1"><option value="">選択してください</option></select>
+            <button onclick="showSetup()" style="background:var(--surface2);border:1px solid var(--border);color:var(--accent2);border-radius:9px;padding:0 12px;font-size:18px;cursor:pointer;flex-shrink:0;font-family:inherit;">＋</button>
+          </div>
+        </div>
+      </div>
+      <div class="row full"><div><label>ドライバー名</label><input type="text" id="inputDriver" placeholder="例：山田 太郎" autocomplete="name"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">走行距離</div>
+      <div class="row">
+        <div>
+          <label>出庫時 走行距離</label>
+          <div class="unit"><input type="number" id="inputStart" placeholder="12345" min="0" inputmode="numeric"><span class="unit-lbl">km</span></div>
+          <div class="prev-hint" id="prevHint"></div>
+          <button class="cam-btn" id="camBtnStart" onclick="document.getElementById('fileStart').click()">📷 メーター写真で読み取る（Gemini AI）</button>
+          <img class="cam-preview" id="previewStart">
+          <div class="ocr-box" id="ocrStart"></div>
+          <div class="digit-editor" id="digitEditorStart">
+            <div class="digit-editor-lbl">📝 数字を確認・修正してください</div>
+            <div class="digit-inputs" id="digitInputsStart"></div>
+            <button class="digit-confirm" onclick="confirmDigits('start')">✓ この数値を使う</button>
+          </div>
+        </div>
+        <div>
+          <label>帰社時 走行距離</label>
+          <div class="unit"><input type="number" id="inputEnd" placeholder="12400" min="0" inputmode="numeric"><span class="unit-lbl">km</span></div>
+          <button class="cam-btn" id="camBtnEnd" onclick="document.getElementById('fileEnd').click()">📷 メーター写真で読み取る（Gemini AI）</button>
+          <img class="cam-preview" id="previewEnd">
+          <div class="ocr-box" id="ocrEnd"></div>
+          <div class="digit-editor" id="digitEditorEnd">
+            <div class="digit-editor-lbl">📝 数字を確認・修正してください</div>
+            <div class="digit-inputs" id="digitInputsEnd"></div>
+            <button class="digit-confirm" onclick="confirmDigits('end')">✓ この数値を使う</button>
+          </div>
+        </div>
+      </div>
+      <div class="diff-box"><span class="diff-lbl">本日の走行距離</span><span class="diff-val" id="diffValue">— km</span></div>
+    </div>
+
+    <input type="file" id="fileStart" accept="image/*" capture="environment" style="display:none" onchange="handleImage(event,'start')">
+    <input type="file" id="fileEnd" accept="image/*" capture="environment" style="display:none" onchange="handleImage(event,'end')">
+
+    <div class="card">
+      <div class="card-title">備考（任意）</div>
+      <div class="row full"><input type="text" id="inputNote" placeholder="例：得意先訪問、高速利用など" style="font-size:14px;"></div>
+    </div>
+    <button class="btn btn-p" onclick="saveRecord()">✓ 記録を保存</button>
+    <button class="btn btn-s" onclick="clearForm()">クリア</button>
+  </div>
+
+  <!-- LIST -->
+  <div class="panel" id="panel-list">
+    <div class="filter-row">
+      <select id="filterVehicle" onchange="renderList()"><option value="">すべての車両</option></select>
+      <input type="month" id="filterMonth" onchange="renderList()">
+      <button class="btn-exp" onclick="exportCSV()">CSV出力</button>
+    </div>
+    <div id="listContainer"></div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="panel" id="panel-summary">
+    <div class="filter-row">
+      <select id="summaryVehicle" onchange="renderSummary()"><option value="">すべての車両</option></select>
+      <input type="month" id="summaryMonth" onchange="renderSummary()">
+    </div>
+    <div class="stat-grid" id="summaryGrid"></div>
+    <div id="summaryList"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="panel" id="panel-settings">
+    <div class="card">
+      <div class="card-title">Gemini APIキー設定</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.8;">
+        Google AI StudioのAPIキーを入力するとメーター写真を自動で読み取れます。<br>
+        キーは無料で取得できます（月1500回まで無料）。<br>
+        取得先: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent2);">aistudio.google.com/app/apikey</a>
+      </div>
+      <label>APIキー</label>
+      <input type="password" id="geminiKeyInput" placeholder="AIzaSy..." style="font-family:monospace;font-size:13px;margin-bottom:8px;">
+      <button class="btn btn-p" onclick="saveGeminiKey()">保存してテスト</button>
+      <button class="btn btn-s" onclick="clearGeminiKey()">キーを削除</button>
+      <div id="keyTestResult" style="display:none;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Google スプレッドシート連携（任意）</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.8;">Apps ScriptのURLを設定すると保存時に自動でシートへ書き込まれます。</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><span style="font-size:12px;color:var(--muted);">接続状態</span><span id="gasStatus" style="font-size:13px;font-weight:700;color:var(--muted);">未設定</span></div>
+      <label>Apps Script URL</label>
+      <input type="url" id="gasUrlInput" placeholder="https://script.google.com/macros/s/..." style="font-size:11px;margin-bottom:8px;">
+      <button class="btn btn-p" onclick="saveGasUrl()">URLを保存して同期</button>
+      <button class="btn btn-s" onclick="loadFromSheets()">🔄 今すぐ同期（読み込み）</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">GASコード（コピーして貼り付け）</div>
+      <div style="position:relative;">
+        <pre id="gasCode" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:14px;font-size:10px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.7;">const SHEET_NAME = '走行記録';
+function doGet(e){if(e.parameter.action==='get')return getRecords();return ContentService.createTextOutput(JSON.stringify({error:'invalid'})).setMimeType(ContentService.MimeType.JSON);}
+function doPost(e){const data=JSON.parse(e.postData.contents);if(data.action==='add')addRecord(data.record);return ContentService.createTextOutput(JSON.stringify({status:'ok'})).setMimeType(ContentService.MimeType.JSON);}
+function getSheet(){const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(SHEET_NAME);if(!sheet){sheet=ss.insertSheet(SHEET_NAME);sheet.appendRow(['ID','日付','車両','ドライバー','出庫(km)','帰社(km)','走行距離(km)','備考','記録日時']);sheet.setFrozenRows(1);}return sheet;}
+function addRecord(r){getSheet().appendRow([r.id,r.date,r.vehicle,r.driver,r.start,r.end,r.km,r.note||'',new Date().toLocaleString('ja-JP')]);}
+function getRecords(){const rows=getSheet().getDataRange().getValues();const records=rows.slice(1).map(row=>({id:row[0],date:row[1],vehicle:row[2],driver:row[3],start:row[4],end:row[5],km:row[6],note:row[7]||''})).reverse();return ContentService.createTextOutput(JSON.stringify({records})).setMimeType(ContentService.MimeType.JSON);}</pre>
+        <button onclick="copyGasCode()" id="copyBtn" style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:7px;font-size:11px;cursor:pointer;font-family:inherit;">📋 コピー</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="vehicleSetupOverlay">
+  <div class="modal">
+    <div style="font-weight:700;font-size:15px;margin-bottom:6px;">🚗 車両を登録</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">車両名を1台以上登録してください。</div>
+    <div id="vehicleList" style="margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <input type="text" id="newVehicleName" placeholder="例：社用車1号" style="flex:1;font-size:13px;">
+      <button class="btn btn-p" style="width:auto;padding:9px 14px;font-size:12px;margin-top:0;" onclick="addVehicle()">追加</button>
+    </div>
+    <button class="btn btn-p" onclick="closeSetup()" id="setupDoneBtn" disabled>完了</button>
+  </div>
+</div>
+
+<script>
+let records = JSON.parse(localStorage.getItem('vlog_records') || '[]');
+let vehicles = JSON.parse(localStorage.getItem('vlog_vehicles') || '[]');
+
+const today = new Date();
+document.getElementById('inputDate').value = today.toISOString().split('T')[0];
+document.getElementById('todayBadge').textContent = today.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+document.getElementById('filterMonth').value = today.toISOString().slice(0,7);
+document.getElementById('summaryMonth').value = today.toISOString().slice(0,7);
+populateVehicleSelects(); renderList(); renderSummary(); restoreLastInputs(); updateApiStatusBadge();
+
+['inputStart','inputEnd'].forEach(id => document.getElementById(id).addEventListener('input', calcDiff));
+
+function getGeminiKey() { return localStorage.getItem('vlog_gemini_key') || ''; }
+
+function updateApiStatusBadge() {
+  const badge = document.getElementById('apiStatusBadge');
+  if (getGeminiKey()) {
+    badge.textContent = 'Gemini設定済み';
+    badge.className = 'api-status api-ok';
+  } else {
+    badge.textContent = 'Gemini未設定';
+    badge.className = 'api-status api-ng';
+  }
+}
+
+async function saveGeminiKey() {
+  const key = document.getElementById('geminiKeyInput').value.trim();
+  if (!key.startsWith('AIza')) { showToast('⚠️ AIzaSy... で始まるキーを入力してください', '#f87171'); return; }
+  const result = document.getElementById('keyTestResult');
+  result.style.display = 'block';
+  result.style.cssText = 'display:block;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.3);color:var(--accent2);';
+  result.textContent = '🔄 接続テスト中...';
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+    if (res.ok) {
+      localStorage.setItem('vlog_gemini_key', key);
+      result.style.cssText = 'display:block;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);color:var(--accent);';
+      result.textContent = '✓ 接続成功！メーター読み取りが使えます';
+      updateApiStatusBadge();
+      showToast('✓ Gemini APIキーを保存しました');
+    } else {
+      result.style.cssText = 'display:block;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--danger);';
+      result.textContent = '⚠️ キーが無効です。再確認してください';
+    }
+  } catch(e) {
+    result.style.cssText = 'display:block;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--danger);';
+    result.textContent = '⚠️ 通信エラー: ' + e.message;
+  }
+}
+
+function clearGeminiKey() {
+  localStorage.removeItem('vlog_gemini_key');
+  document.getElementById('geminiKeyInput').value = '';
+  document.getElementById('keyTestResult').style.display = 'none';
+  updateApiStatusBadge();
+  showToast('APIキーを削除しました');
+}
+
+async function readMeterWithGemini(file) {
+  const key = getGeminiKey();
+  if (!key) throw new Error('APIキーが設定されていません。設定タブから入力してください');
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result.split(',')[1];
+      const mimeType = file.type || 'image/jpeg';
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { inline_data: { mime_type: mimeType, data: base64 } },
+                  { text: '車のオドメーター（ODO）に表示されている走行距離の数字だけを半角数字で答えてください。例: 79956\n読み取れない場合はNULLとだけ返してください。数字以外は一切書かないでください。' }
+                ]
+              }]
+            })
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || 'Gemini APIエラー');
+        const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+        if (text === 'NULL' || !text) return resolve(null);
+        const m = text.match(/\d{4,7}/);
+        resolve(m ? parseInt(m[0], 10) : null);
+      } catch(e) { reject(e); }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleImage(event, type) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const sfx = type === 'start' ? 'Start' : 'End';
+  const preview = document.getElementById('preview' + sfx);
+  const ocrEl = document.getElementById('ocr' + sfx);
+  const btn = document.getElementById('camBtn' + sfx);
+
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  btn.classList.add('loading');
+  btn.textContent = '🤖 Gemini読み取り中...';
+  ocrEl.style.display = 'none';
+  document.getElementById('digitEditor' + sfx).style.display = 'none';
+
+  try {
+    const km = await readMeterWithGemini(file);
+    if (km !== null) {
+      showDigitEditor(type, km);
+      ocrEl.className = 'ocr-box ocr-ok';
+      ocrEl.innerHTML = '✓ 読み取り完了。数字を確認してください';
+      ocrEl.style.display = 'flex';
+    } else {
+      ocrEl.className = 'ocr-box ocr-err';
+      ocrEl.innerHTML = '⚠️ 読み取れませんでした。ODOが写るよう撮り直してください';
+      ocrEl.style.display = 'flex';
+    }
+  } catch(e) {
+    ocrEl.className = 'ocr-box ocr-err';
+    ocrEl.innerHTML = '⚠️ ' + e.message;
+    ocrEl.style.display = 'flex';
+  }
+  btn.classList.remove('loading');
+  btn.textContent = '📷 撮り直す（Gemini AI）';
+  event.target.value = '';
+}
+
+function showDigitEditor(type, km) {
+  const sfx = type === 'start' ? 'Start' : 'End';
+  const container = document.getElementById('digitInputs' + sfx);
+  container.innerHTML = String(km).split('').map((d,i) =>
+    `<input class="di" type="number" min="0" max="9" value="${d}" id="di_${sfx}_${i}"
+     oninput="this.value=this.value.slice(-1);syncDigits('${sfx}')"
+     onkeydown="handleDigitKey(event,'${sfx}',${i})">`
+  ).join('');
+  document.getElementById('digitEditor' + sfx).style.display = 'block';
+}
+function handleDigitKey(e, sfx, i) {
+  if (e.key >= '0' && e.key <= '9') {
+    document.getElementById(`di_${sfx}_${i}`).value = e.key;
+    syncDigits(sfx);
+    const next = document.getElementById(`di_${sfx}_${i+1}`);
+    if (next) next.focus();
+    e.preventDefault();
+  }
+}
+function syncDigits(sfx) {
+  const inputs = document.querySelectorAll(`[id^="di_${sfx}_"]`);
+  const num = parseInt([...inputs].map(i=>i.value||'0').join(''), 10);
+  if (!isNaN(num)) { document.getElementById(sfx==='Start'?'inputStart':'inputEnd').value = num; calcDiff(); }
+}
+function confirmDigits(type) {
+  const sfx = type === 'start' ? 'Start' : 'End';
+  const inputs = document.querySelectorAll(`[id^="di_${sfx}_"]`);
+  const num = parseInt([...inputs].map(i=>i.value||'0').join(''), 10);
+  if (!isNaN(num) && num > 0) {
+    document.getElementById(sfx==='Start'?'inputStart':'inputEnd').value = num;
+    calcDiff();
+    document.getElementById('digitEditor' + sfx).style.display = 'none';
+    const ocrEl = document.getElementById('ocr' + sfx);
+    ocrEl.className = 'ocr-box ocr-ok';
+    ocrEl.innerHTML = `✓ 確定: <strong>${num.toLocaleString()} km</strong>`;
+    ocrEl.style.display = 'flex';
+    showToast(`✓ ${type==='start'?'出庫時':'帰社時'} ${num.toLocaleString()} km を設定`);
+  }
+}
+
+function calcDiff() {
+  const s = parseFloat(document.getElementById('inputStart').value);
+  const e = parseFloat(document.getElementById('inputEnd').value);
+  const el = document.getElementById('diffValue');
+  if (!isNaN(s) && !isNaN(e)) { el.textContent=(e-s)+' km'; el.className='diff-val'+(e-s<0?' warn':''); }
+  else { el.textContent='— km'; el.className='diff-val'; }
+}
+
+function fillPrevStart(v) {
+  if (!v) return;
+  const prev = records.find(r => r.vehicle === v);
+  if (prev) {
+    const hint = document.getElementById('prevHint');
+    hint.textContent = `↑ 前回帰社時: ${prev.end.toLocaleString()} km を自動入力`;
+    hint.style.display = 'block';
+    document.getElementById('inputStart').value = prev.end;
+    calcDiff();
+  }
+}
+document.getElementById('inputVehicle').addEventListener('change', e => { fillPrevStart(e.target.value); localStorage.setItem('vlog_last_vehicle', e.target.value); });
+document.getElementById('inputDriver').addEventListener('change', e => localStorage.setItem('vlog_last_driver', e.target.value.trim()));
+function restoreLastInputs() {
+  const ld = localStorage.getItem('vlog_last_driver');
+  const lv = localStorage.getItem('vlog_last_vehicle');
+  if (ld) document.getElementById('inputDriver').value = ld;
+  if (lv) { const sel=document.getElementById('inputVehicle'); if([...sel.options].some(o=>o.value===lv)){sel.value=lv;fillPrevStart(lv);} }
+}
+
+async function saveRecord() {
+  const date=document.getElementById('inputDate').value, vehicle=document.getElementById('inputVehicle').value;
+  const driver=document.getElementById('inputDriver').value.trim();
+  const start=parseFloat(document.getElementById('inputStart').value), end=parseFloat(document.getElementById('inputEnd').value);
+  const note=document.getElementById('inputNote').value.trim();
+  if (!date||!vehicle||!driver||isNaN(start)||isNaN(end)){showToast('⚠️ 必須項目を入力してください','#f87171');return;}
+  if (end<start){showToast('⚠️ 帰社時が出庫時より小さいです','#f87171');return;}
+  const record={id:Date.now(),date,vehicle,driver,start,end,km:end-start,note};
+  const gasUrl=localStorage.getItem('vlog_gas_url');
+  if (gasUrl) {
+    const btn=document.querySelector('.btn-p');btn.textContent='📤 送信中...';btn.disabled=true;
+    try{await fetch(gasUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',record})});showToast('✓ スプレッドシートに保存しました');}
+    catch(e){showToast('⚠️ シート保存失敗','#f87171');}
+    btn.textContent='✓ 記録を保存';btn.disabled=false;
+  } else {showToast('✓ 記録を保存しました');}
+  records.unshift(record); localStorage.setItem('vlog_records',JSON.stringify(records));
+  clearForm(); renderList(); renderSummary();
+}
+
+function clearForm() {
+  ['inputDriver','inputStart','inputEnd','inputNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('prevHint').style.display='none';
+  ['Start','End'].forEach(sfx=>{
+    document.getElementById('preview'+sfx).style.display='none';
+    document.getElementById('ocr'+sfx).style.display='none';
+    document.getElementById('digitEditor'+sfx).style.display='none';
+    document.getElementById('camBtn'+sfx).textContent='📷 メーター写真で読み取る（Gemini AI）';
+  });
+  calcDiff();
+}
+
+function deleteRecord(id){if(!confirm('削除しますか？'))return;records=records.filter(r=>r.id!==id);localStorage.setItem('vlog_records',JSON.stringify(records));renderList();renderSummary();}
+function getFiltered(v,m){return records.filter(r=>(!v||r.vehicle===v)&&(!m||r.date.startsWith(m)));}
+
+function renderList(){
+  const v=document.getElementById('filterVehicle').value,m=document.getElementById('filterMonth').value;
+  const filtered=getFiltered(v,m),c=document.getElementById('listContainer');
+  if(!filtered.length){c.innerHTML='<div class="empty">記録がありません</div>';return;}
+  c.innerHTML=filtered.map(r=>`
+    <div class="log-item">
+      <button class="del-btn" onclick="deleteRecord(${r.id})">✕</button>
+      <div class="log-hdr"><span class="log-date">${r.date}　${r.driver}</span><span class="log-veh">${r.vehicle}</span></div>
+      <div class="log-km">
+        <div class="km-block"><div class="km-lbl">出庫</div><div class="km-val">${r.start.toLocaleString()}</div></div>
+        <div class="km-arr">→</div>
+        <div class="km-block"><div class="km-lbl">帰社</div><div class="km-val">${r.end.toLocaleString()}</div></div>
+        <div class="km-arr">=</div>
+        <div class="km-block"><div class="km-lbl">走行</div><div class="km-diff">${r.km.toLocaleString()} km</div></div>
+      </div>
+      ${r.note?`<div class="log-note">📝 ${r.note}</div>`:''}
+    </div>`).join('');
+}
+
+function renderSummary(){
+  const v=document.getElementById('summaryVehicle').value,m=document.getElementById('summaryMonth').value;
+  const f=getFiltered(v,m),total=f.reduce((a,r)=>a+r.km,0),days=f.length,avg=days?Math.round(total/days):0,max=days?Math.max(...f.map(r=>r.km)):0;
+  document.getElementById('summaryGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-lbl">総走行距離</div><div class="stat-val">${total.toLocaleString()}</div><div class="stat-unit">km</div></div>
+    <div class="stat-card"><div class="stat-lbl">稼働日数</div><div class="stat-val">${days}</div><div class="stat-unit">日</div></div>
+    <div class="stat-card"><div class="stat-lbl">1日平均</div><div class="stat-val">${avg.toLocaleString()}</div><div class="stat-unit">km/日</div></div>
+    <div class="stat-card"><div class="stat-lbl">最大走行</div><div class="stat-val">${max.toLocaleString()}</div><div class="stat-unit">km</div></div>`;
+  if(!v){const bv={};f.forEach(r=>{bv[r.vehicle]=(bv[r.vehicle]||0)+r.km;});document.getElementById('summaryList').innerHTML=Object.entries(bv).map(([veh,km])=>`<div class="log-item"><div class="log-hdr"><span class="log-veh">${veh}</span><span class="diff-val" style="font-size:17px;">${km.toLocaleString()} km</span></div></div>`).join('');}
+  else document.getElementById('summaryList').innerHTML='';
+}
+
+function exportCSV(){
+  const v=document.getElementById('filterVehicle').value,m=document.getElementById('filterMonth').value,f=getFiltered(v,m);
+  if(!f.length){showToast('出力する記録がありません','#f87171');return;}
+  const csv='\uFEFF日付,車両,ドライバー,出庫時(km),帰社時(km),走行距離(km),備考\n'+f.map(r=>`${r.date},${r.vehicle},${r.driver},${r.start},${r.end},${r.km},${r.note}`).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`走行記録_${m||'all'}.csv`;a.click();showToast('CSVを出力しました');
+}
+
+async function loadFromSheets(){
+  const gasUrl=localStorage.getItem('vlog_gas_url');if(!gasUrl){showToast('⚠️ GAS URLが未設定です','#f87171');return;}
+  showToast('🔄 読み込み中...');
+  try{const res=await fetch(gasUrl+'?action=get'),data=await res.json();
+  if(data.records){records=data.records;localStorage.setItem('vlog_records',JSON.stringify(records));
+  [...new Set(records.map(r=>r.vehicle))].forEach(v=>{if(!vehicles.includes(v))vehicles.push(v);});
+  localStorage.setItem('vlog_vehicles',JSON.stringify(vehicles));populateVehicleSelects();renderList();renderSummary();showToast(`✓ ${records.length}件を読み込みました`);}}
+  catch(e){showToast('⚠️ 読み込み失敗','#f87171');}
+}
+
+function saveGasUrl(){
+  const url=document.getElementById('gasUrlInput').value.trim();
+  if(!url.startsWith('https://script.google.com/')){showToast('⚠️ 正しいURLを入力してください','#f87171');return;}
+  localStorage.setItem('vlog_gas_url',url);
+  document.getElementById('gasStatus').textContent='✓ 接続済み';
+  document.getElementById('gasStatus').style.color='var(--accent)';
+  showToast('✓ URLを保存しました');loadFromSheets();
+}
+
+function initSettingsPanel(){
+  const key=getGeminiKey();if(key)document.getElementById('geminiKeyInput').value=key;
+  const url=localStorage.getItem('vlog_gas_url');
+  if(url){document.getElementById('gasUrlInput').value=url;document.getElementById('gasStatus').textContent='✓ 接続済み';document.getElementById('gasStatus').style.color='var(--accent)';}
+}
+
+function copyGasCode(){navigator.clipboard.writeText(document.getElementById('gasCode').textContent).then(()=>{const btn=document.getElementById('copyBtn');btn.textContent='✓ コピー済み';btn.style.color='var(--accent)';setTimeout(()=>{btn.textContent='📋 コピー';btn.style.color='';},2000);});}
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['input','list','summary','settings'][i]===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='list')renderList();if(name==='summary')renderSummary();if(name==='settings')initSettingsPanel();
+}
+
+function showToast(msg,color){const t=document.getElementById('toast');t.textContent=msg;t.style.background=color||'var(--accent)';t.style.color=color?'#fff':'#0f1117';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+function showSetup(){document.getElementById('vehicleSetupOverlay').style.display='flex';renderVehicleList();}
+function closeSetup(){document.getElementById('vehicleSetupOverlay').style.display='none';populateVehicleSelects();renderList();renderSummary();restoreLastInputs();}
+function addVehicle(){
+  const name=document.getElementById('newVehicleName').value.trim();
+  if(!name)return;if(vehicles.includes(name)){alert('同じ名前がすでにあります');return;}
+  vehicles.push(name);localStorage.setItem('vlog_vehicles',JSON.stringify(vehicles));
+  document.getElementById('newVehicleName').value='';renderVehicleList();document.getElementById('setupDoneBtn').disabled=false;
+}
+function renderVehicleList(){
+  document.getElementById('vehicleList').innerHTML=vehicles.map((v,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:7px;margin-bottom:6px;">
+      <span style="font-size:13px;">🚗 ${v}</span>
+      <button onclick="removeVehicle(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:17px;">×</button>
+    </div>`).join('')||'<div style="color:var(--muted);font-size:12px;text-align:center;padding:10px;">まだ車両がありません</div>';
+  document.getElementById('setupDoneBtn').disabled=vehicles.length===0;
+}
+function removeVehicle(i){vehicles.splice(i,1);localStorage.setItem('vlog_vehicles',JSON.stringify(vehicles));renderVehicleList();}
+function populateVehicleSelects(){
+  ['inputVehicle','filterVehicle','summaryVehicle'].forEach(id=>{
+    const sel=document.getElementById(id),isFilter=id!=='inputVehicle';
+    sel.innerHTML=(isFilter?'<option value="">すべての車両</option>':'<option value="">選択してください</option>')+vehicles.map(v=>`<option value="${v}">${v}</option>`).join('');
+  });
+  if(!document.getElementById('setupBtn')){
+    const btn=document.createElement('button');btn.id='setupBtn';btn.textContent='⚙ 車両設定';
+    btn.style.cssText='background:none;border:1px solid var(--border);color:var(--muted);padding:5px 11px;border-radius:7px;font-size:11px;cursor:pointer;font-family:inherit;';
+    btn.onclick=()=>showSetup();document.querySelector('header').appendChild(btn);
+  }
+}
+document.getElementById('newVehicleName').addEventListener('keydown',e=>{if(e.key==='Enter')addVehicle();});
+</script>
+</body>
+</html>
