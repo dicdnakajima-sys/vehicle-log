@@ -424,7 +424,9 @@ function restoreLastInputs() {
 }
 
 async function saveRecord() {
-  const date=document.getElementById('inputDate').value, vehicle=document.getElementById('inputVehicle').value;
+  const dateRaw=document.getElementById('inputDate').value;
+  const date=dateRaw.includes('T')?dateRaw.split('T')[0]:dateRaw;
+  const vehicle=document.getElementById('inputVehicle').value;
   const driver=document.getElementById('inputDriver').value.trim();
   const start=parseFloat(document.getElementById('inputStart').value), end=parseFloat(document.getElementById('inputEnd').value);
   const fuelVal=document.getElementById('inputFuel').value.trim();
@@ -496,7 +498,7 @@ function renderSummary(){
 function exportCSV(){
   const v=document.getElementById('filterVehicle').value,m=document.getElementById('filterMonth').value,f=getFiltered(v,m);
   if(!f.length){showToast('出力する記録がありません','#f87171');return;}
-  const csv='\uFEFF日付,車両,ドライバー,出庫時(km),帰社時(km),走行距離(km),給油(L),備考\n'+f.map(r=>`${r.date},${r.vehicle},${r.driver},${r.start},${r.end},${r.km},${r.fuel!==''&&r.fuel!==undefined?r.fuel:''},${r.note}`).join('\n');
+  const csv='\uFEFF日付,車両,ドライバー,出庫時(km),帰社時(km),走行距離(km),給油(L),備考\n'+f.map(r=>`${r.date.split('T')[0]},${r.vehicle},${r.driver},${r.start},${r.end},${r.km},${r.fuel!==''&&r.fuel!==undefined?r.fuel:''},${r.note}`).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download=`走行記録_${m||'all'}.csv`;a.click();showToast('CSVを出力しました');
 }
