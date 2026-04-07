@@ -73,7 +73,8 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
 .km-val{font-size:16px;font-weight:500;}
 .km-arr{color:var(--muted);font-size:13px;text-align:center;}
 .km-diff{color:var(--accent);font-size:19px;font-weight:700;}
-.log-note{margin-top:9px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:7px;}
+.log-fuel{display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:11px;color:var(--accent2);background:rgba(96,165,250,.1);padding:3px 10px;border-radius:20px;}
+.log-note{margin-top:7px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:7px;}
 .del-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:3px;opacity:0;transition:.2s;}
 .log-item:hover .del-btn{opacity:1;}
 .del-btn:hover{color:var(--danger);}
@@ -157,6 +158,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
     <input type="file" id="fileEnd" accept="image/*" capture="environment" style="display:none" onchange="handleImage(event,'end')">
 
     <div class="card">
+      <div class="card-title">給油（任意）</div>
+      <div class="row full">
+        <div>
+          <label>給油量</label>
+          <div class="unit"><input type="number" id="inputFuel" placeholder="0" min="0" step="0.1" inputmode="decimal"><span class="unit-lbl">L</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-title">備考（任意）</div>
       <div class="row full"><input type="text" id="inputNote" placeholder="例：得意先訪問、高速利用など" style="font-size:14px;"></div>
     </div>
@@ -216,9 +227,9 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
         <pre id="gasCode" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:14px;font-size:10px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.7;">const SHEET_NAME = '走行記録';
 function doGet(e){if(e.parameter.action==='get')return getRecords();return ContentService.createTextOutput(JSON.stringify({error:'invalid'})).setMimeType(ContentService.MimeType.JSON);}
 function doPost(e){const data=JSON.parse(e.postData.contents);if(data.action==='add')addRecord(data.record);return ContentService.createTextOutput(JSON.stringify({status:'ok'})).setMimeType(ContentService.MimeType.JSON);}
-function getSheet(){const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(SHEET_NAME);if(!sheet){sheet=ss.insertSheet(SHEET_NAME);sheet.appendRow(['ID','日付','車両','ドライバー','出庫(km)','帰社(km)','走行距離(km)','備考','記録日時']);sheet.setFrozenRows(1);}return sheet;}
-function addRecord(r){getSheet().appendRow([r.id,r.date,r.vehicle,r.driver,r.start,r.end,r.km,r.note||'',new Date().toLocaleString('ja-JP')]);}
-function getRecords(){const rows=getSheet().getDataRange().getValues();const records=rows.slice(1).map(row=>({id:row[0],date:row[1],vehicle:row[2],driver:row[3],start:row[4],end:row[5],km:row[6],note:row[7]||''})).reverse();return ContentService.createTextOutput(JSON.stringify({records})).setMimeType(ContentService.MimeType.JSON);}</pre>
+function getSheet(){const ss=SpreadsheetApp.getActiveSpreadsheet();let sheet=ss.getSheetByName(SHEET_NAME);if(!sheet){sheet=ss.insertSheet(SHEET_NAME);sheet.appendRow(['ID','日付','車両','ドライバー','出庫(km)','帰社(km)','走行距離(km)','給油(L)','備考','記録日時']);sheet.setFrozenRows(1);}return sheet;}
+function addRecord(r){getSheet().appendRow([r.id,r.date,r.vehicle,r.driver,r.start,r.end,r.km,r.fuel||'',r.note||'',new Date().toLocaleString('ja-JP')]);}
+function getRecords(){const rows=getSheet().getDataRange().getValues();const records=rows.slice(1).map(row=>({id:row[0],date:row[1],vehicle:row[2],driver:row[3],start:row[4],end:row[5],km:row[6],fuel:row[7]||'',note:row[8]||''})).reverse();return ContentService.createTextOutput(JSON.stringify({records})).setMimeType(ContentService.MimeType.JSON);}</pre>
         <button onclick="copyGasCode()" id="copyBtn" style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:7px;font-size:11px;cursor:pointer;font-family:inherit;">📋 コピー</button>
       </div>
     </div>
@@ -257,20 +268,14 @@ function getGeminiKey() { return localStorage.getItem('vlog_gemini_key') || ''; 
 
 function updateApiStatusBadge() {
   const badge = document.getElementById('apiStatusBadge');
-  if (getGeminiKey()) {
-    badge.textContent = 'Gemini設定済み';
-    badge.className = 'api-status api-ok';
-  } else {
-    badge.textContent = 'Gemini未設定';
-    badge.className = 'api-status api-ng';
-  }
+  if (getGeminiKey()) { badge.textContent='Gemini設定済み'; badge.className='api-status api-ok'; }
+  else { badge.textContent='Gemini未設定'; badge.className='api-status api-ng'; }
 }
 
 async function saveGeminiKey() {
   const key = document.getElementById('geminiKeyInput').value.trim();
   if (!key.startsWith('AIza')) { showToast('⚠️ AIzaSy... で始まるキーを入力してください', '#f87171'); return; }
   const result = document.getElementById('keyTestResult');
-  result.style.display = 'block';
   result.style.cssText = 'display:block;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.3);color:var(--accent2);';
   result.textContent = '🔄 接続テスト中...';
   try {
@@ -279,8 +284,7 @@ async function saveGeminiKey() {
       localStorage.setItem('vlog_gemini_key', key);
       result.style.cssText = 'display:block;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);color:var(--accent);';
       result.textContent = '✓ 接続成功！メーター読み取りが使えます';
-      updateApiStatusBadge();
-      showToast('✓ Gemini APIキーを保存しました');
+      updateApiStatusBadge(); showToast('✓ Gemini APIキーを保存しました');
     } else {
       result.style.cssText = 'display:block;margin-top:10px;font-size:12px;padding:10px 13px;border-radius:9px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:var(--danger);';
       result.textContent = '⚠️ キーが無効です。再確認してください';
@@ -295,8 +299,7 @@ function clearGeminiKey() {
   localStorage.removeItem('vlog_gemini_key');
   document.getElementById('geminiKeyInput').value = '';
   document.getElementById('keyTestResult').style.display = 'none';
-  updateApiStatusBadge();
-  showToast('APIキーを削除しました');
+  updateApiStatusBadge(); showToast('APIキーを削除しました');
 }
 
 async function readMeterWithGemini(file) {
@@ -310,17 +313,11 @@ async function readMeterWithGemini(file) {
       try {
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { inline_data: { mime_type: mimeType, data: base64 } },
-                  { text: '車のオドメーター（ODO）に表示されている走行距離の数字だけを半角数字で答えてください。例: 79956\n読み取れない場合はNULLとだけ返してください。数字以外は一切書かないでください。' }
-                ]
-              }]
-            })
+          { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ contents:[{ parts:[
+              { inline_data:{ mime_type:mimeType, data:base64 } },
+              { text:'車のオドメーター（ODO）に表示されている走行距離の数字だけを半角数字で答えてください。例: 79956\n読み取れない場合はNULLとだけ返してください。数字以外は一切書かないでください。' }
+            ]}]})
           }
         );
         const data = await res.json();
@@ -342,33 +339,19 @@ async function handleImage(event, type) {
   const preview = document.getElementById('preview' + sfx);
   const ocrEl = document.getElementById('ocr' + sfx);
   const btn = document.getElementById('camBtn' + sfx);
-
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = 'block';
-  btn.classList.add('loading');
-  btn.textContent = '🤖 Gemini読み取り中...';
-  ocrEl.style.display = 'none';
-  document.getElementById('digitEditor' + sfx).style.display = 'none';
-
+  preview.src = URL.createObjectURL(file); preview.style.display = 'block';
+  btn.classList.add('loading'); btn.textContent = '🤖 Gemini読み取り中...';
+  ocrEl.style.display = 'none'; document.getElementById('digitEditor' + sfx).style.display = 'none';
   try {
     const km = await readMeterWithGemini(file);
     if (km !== null) {
       showDigitEditor(type, km);
-      ocrEl.className = 'ocr-box ocr-ok';
-      ocrEl.innerHTML = '✓ 読み取り完了。数字を確認してください';
-      ocrEl.style.display = 'flex';
+      ocrEl.className = 'ocr-box ocr-ok'; ocrEl.innerHTML = '✓ 読み取り完了。数字を確認してください'; ocrEl.style.display = 'flex';
     } else {
-      ocrEl.className = 'ocr-box ocr-err';
-      ocrEl.innerHTML = '⚠️ 読み取れませんでした。ODOが写るよう撮り直してください';
-      ocrEl.style.display = 'flex';
+      ocrEl.className = 'ocr-box ocr-err'; ocrEl.innerHTML = '⚠️ 読み取れませんでした。ODOが写るよう撮り直してください'; ocrEl.style.display = 'flex';
     }
-  } catch(e) {
-    ocrEl.className = 'ocr-box ocr-err';
-    ocrEl.innerHTML = '⚠️ ' + e.message;
-    ocrEl.style.display = 'flex';
-  }
-  btn.classList.remove('loading');
-  btn.textContent = '📷 撮り直す（Gemini AI）';
+  } catch(e) { ocrEl.className='ocr-box ocr-err'; ocrEl.innerHTML='⚠️ '+e.message; ocrEl.style.display='flex'; }
+  btn.classList.remove('loading'); btn.textContent = '📷 撮り直す（Gemini AI）';
   event.target.value = '';
 }
 
@@ -444,10 +427,12 @@ async function saveRecord() {
   const date=document.getElementById('inputDate').value, vehicle=document.getElementById('inputVehicle').value;
   const driver=document.getElementById('inputDriver').value.trim();
   const start=parseFloat(document.getElementById('inputStart').value), end=parseFloat(document.getElementById('inputEnd').value);
+  const fuelVal=document.getElementById('inputFuel').value.trim();
+  const fuel=fuelVal!==''?parseFloat(fuelVal):'';
   const note=document.getElementById('inputNote').value.trim();
   if (!date||!vehicle||!driver||isNaN(start)||isNaN(end)){showToast('⚠️ 必須項目を入力してください','#f87171');return;}
   if (end<start){showToast('⚠️ 帰社時が出庫時より小さいです','#f87171');return;}
-  const record={id:Date.now(),date,vehicle,driver,start,end,km:end-start,note};
+  const record={id:Date.now(),date,vehicle,driver,start,end,km:end-start,fuel,note};
   const gasUrl=localStorage.getItem('vlog_gas_url');
   if (gasUrl) {
     const btn=document.querySelector('.btn-p');btn.textContent='📤 送信中...';btn.disabled=true;
@@ -460,7 +445,7 @@ async function saveRecord() {
 }
 
 function clearForm() {
-  ['inputDriver','inputStart','inputEnd','inputNote'].forEach(id=>document.getElementById(id).value='');
+  ['inputDriver','inputStart','inputEnd','inputFuel','inputNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('prevHint').style.display='none';
   ['Start','End'].forEach(sfx=>{
     document.getElementById('preview'+sfx).style.display='none';
@@ -489,18 +474,21 @@ function renderList(){
         <div class="km-arr">=</div>
         <div class="km-block"><div class="km-lbl">走行</div><div class="km-diff">${r.km.toLocaleString()} km</div></div>
       </div>
+      ${r.fuel!==''&&r.fuel!==undefined?`<div class="log-fuel">⛽ ${r.fuel} L</div>`:''}
       ${r.note?`<div class="log-note">📝 ${r.note}</div>`:''}
     </div>`).join('');
 }
 
 function renderSummary(){
   const v=document.getElementById('summaryVehicle').value,m=document.getElementById('summaryMonth').value;
-  const f=getFiltered(v,m),total=f.reduce((a,r)=>a+r.km,0),days=f.length,avg=days?Math.round(total/days):0,max=days?Math.max(...f.map(r=>r.km)):0;
+  const f=getFiltered(v,m);
+  const total=f.reduce((a,r)=>a+r.km,0),days=f.length,avg=days?Math.round(total/days):0,max=days?Math.max(...f.map(r=>r.km)):0;
+  const totalFuel=f.reduce((a,r)=>a+(parseFloat(r.fuel)||0),0);
   document.getElementById('summaryGrid').innerHTML=`
     <div class="stat-card"><div class="stat-lbl">総走行距離</div><div class="stat-val">${total.toLocaleString()}</div><div class="stat-unit">km</div></div>
     <div class="stat-card"><div class="stat-lbl">稼働日数</div><div class="stat-val">${days}</div><div class="stat-unit">日</div></div>
     <div class="stat-card"><div class="stat-lbl">1日平均</div><div class="stat-val">${avg.toLocaleString()}</div><div class="stat-unit">km/日</div></div>
-    <div class="stat-card"><div class="stat-lbl">最大走行</div><div class="stat-val">${max.toLocaleString()}</div><div class="stat-unit">km</div></div>`;
+    <div class="stat-card"><div class="stat-lbl">総給油量</div><div class="stat-val">${totalFuel.toLocaleString()}</div><div class="stat-unit">L</div></div>`;
   if(!v){const bv={};f.forEach(r=>{bv[r.vehicle]=(bv[r.vehicle]||0)+r.km;});document.getElementById('summaryList').innerHTML=Object.entries(bv).map(([veh,km])=>`<div class="log-item"><div class="log-hdr"><span class="log-veh">${veh}</span><span class="diff-val" style="font-size:17px;">${km.toLocaleString()} km</span></div></div>`).join('');}
   else document.getElementById('summaryList').innerHTML='';
 }
@@ -508,7 +496,7 @@ function renderSummary(){
 function exportCSV(){
   const v=document.getElementById('filterVehicle').value,m=document.getElementById('filterMonth').value,f=getFiltered(v,m);
   if(!f.length){showToast('出力する記録がありません','#f87171');return;}
-  const csv='\uFEFF日付,車両,ドライバー,出庫時(km),帰社時(km),走行距離(km),備考\n'+f.map(r=>`${r.date},${r.vehicle},${r.driver},${r.start},${r.end},${r.km},${r.note}`).join('\n');
+  const csv='\uFEFF日付,車両,ドライバー,出庫時(km),帰社時(km),走行距離(km),給油(L),備考\n'+f.map(r=>`${r.date},${r.vehicle},${r.driver},${r.start},${r.end},${r.km},${r.fuel!==''&&r.fuel!==undefined?r.fuel:''},${r.note}`).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download=`走行記録_${m||'all'}.csv`;a.click();showToast('CSVを出力しました');
 }
